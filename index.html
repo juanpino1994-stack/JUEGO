@@ -3,48 +3,135 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Super Mario Pro Fix</title>
+    <title>Juego Estilo Mario</title>
     <style>
-        :root { --sky-blue: #5c94fc; --grass-green: #74bf2e; --brick-red: #e74c3c; }
-        body { margin: 0; overflow: hidden; background: #000; font-family: 'Courier New', Courier, monospace; touch-action: manipulation; }
-        #game-container { position: relative; width: 100vw; height: 100vh; display: flex; justify-content: center; align-items: center; background: var(--sky-blue); }
-        canvas { display: block; background: var(--sky-blue); border-bottom: 25px solid var(--grass-green); }
-        
-        .ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; color: white; text-align: center; z-index: 10; }
-        .score-board { position: absolute; top: 20px; right: 20px; font-size: 24px; font-weight: bold; text-shadow: 2px 2px #000; z-index: 5; }
-        .menu-card { background: rgba(0,0,0,0.8); padding: 30px; border: 4px solid white; border-radius: 15px; pointer-events: auto; }
-        
-        button { 
-            background: var(--brick-red); 
-            color: white; 
-            border: 3px solid white; 
-            padding: 15px 30px; 
-            font-size: 20px; 
-            font-weight: bold;
-            cursor: pointer; 
-            border-radius: 10px; 
-            font-family: inherit; 
-            margin-top: 20px;
-            text-transform: uppercase;
+        body { margin: 0; overflow: hidden; background: #5c94fc; font-family: 'Courier New', sans-serif; touch-action: none; }
+        canvas { display: block; background: #5c94fc; }
+        #overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            display: flex; flex-direction: column; justify-content: center;
+            align-items: center; background: rgba(0,0,0,0.5); color: white; text-align: center;
         }
-        button:active { transform: scale(0.95); }
-        .hidden { display: none !important; }
+        h1 { margin: 0; font-size: 2.5em; text-shadow: 2px 2px #000; }
+        p { font-size: 1.2em; }
     </style>
 </head>
 <body>
 
-<div id="game-container">
-    <canvas id="gameCanvas"></canvas>
-    <div class="score-board">MARIO: <span id="scoreVal">0000</span></div>
+<div id="overlay">
+    <h1 id="title">SUPER MARIO</h1>
+    <p id="msg">TOCA PARA EMPEZAR</p>
+</div>
+<canvas id="game"></canvas>
 
-    <div id="startScreen" class="ui-layer">
-        <div class="menu-card">
-            <h1 style="margin:0">SUPER MARIO JS</h1>
-            <p>MOTO G EDITION</p>
-            <button id="btnStart">¡JUGAR!</button>
-        </div>
-    </div>
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+const overlay = document.getElementById("overlay");
+const msg = document.getElementById("msg");
 
-    <div id="deathScreen" class="ui-layer hidden">
-        <div class="menu-card">
-            <h2 style="color:
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
+let playing = false;
+let score = 0;
+let obstacles = [];
+
+const player = {
+    x: 50, y: 0, w: 40, h: 40, dy: 0, 
+    jump: 15, grav: 0.8, grounded: false
+};
+
+function start() {
+    if (!playing) {
+        playing = true;
+        score = 0;
+        obstacles = [];
+        player.y = canvas.height - 100;
+        overlay.style.display = "none";
+        // Reiniciar bucle si fuera necesario
+    } else {
+        if (player.grounded) {
+            player.dy = -player.jump;
+            player.grounded = false;
+        }
+    }
+}
+
+function spawn() {
+    if (playing) {
+        obstacles.push({ x: canvas.width, w: 30, h: 50 });
+    }
+}
+
+function update() {
+    if (!playing) return;
+
+    player.dy += player.grav;
+    player.y += player.dy;
+
+    const ground = canvas.height - 40;
+    if (player.y + player.h > ground) {
+        player.y = ground - player.h;
+        player.dy = 0;
+        player.grounded = true;
+    }
+
+    obstacles.forEach((obs, i) => {
+        obs.x -= 6;
+        // Colisión
+        if (player.x < obs.x + obs.w && player.x + player.w > obs.x &&
+            player.y < ground - obs.h + player.h && player.y + player.h > ground - obs.h) {
+            playing = false;
+            overlay.style.display = "flex";
+            document.getElementById("title").innerText = "GAME OVER";
+            msg.innerText = "Puntos: " + score + "\n\nTOCA PARA REINTENTAR";
+        }
+        if (obs.x + obs.w < 0) {
+            obstacles.splice(i, 1);
+            score++;
+        }
+    });
+}
+
+function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Suelo
+    ctx.fillStyle = "#74bf2e";
+    ctx.fillRect(0, canvas.height - 40, canvas.width, 40);
+
+    // Jugador (Cubo Rojo)
+    ctx.fillStyle = "#ff0000";
+    ctx.fillRect(player.x, player.y, player.w, player.h);
+
+    // Obstáculos (Cactus/Tuberías)
+    ctx.fillStyle = "#2ecc71";
+    obstacles.forEach(obs => {
+        ctx.fillRect(obs.x, canvas.height - 40 - obs.h, obs.w, obs.h);
+    });
+
+    // Score
+    if (playing) {
+        ctx.fillStyle = "white";
+        ctx.font = "25px Arial";
+        ctx.fillText("Score: " + score, 20, 40);
+    }
+}
+
+function loop() {
+    update();
+    draw();
+    requestAnimationFrame(loop);
+}
+
+// Eventos unificados (Cualquier clic o toque activa la función start/saltar)
+window.addEventListener("mousedown", (e) => { e.preventDefault(); start(); });
+window.addEventListener("touchstart", (e) => { e.preventDefault(); start(); }, {passive: false});
+window.addEventListener("keydown", (e) => { if(e.code === "Space") start(); });
+
+setInterval(spawn, 1500);
+loop();
+</script>
+</body>
+</html>
