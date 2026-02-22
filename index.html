@@ -5,47 +5,31 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Super Liga Chilena Pro</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #008ecc; font-family: sans-serif; touch-action: none; -webkit-user-select: none; }
-        #ui-layer { position: absolute; width: 100%; top: 0; left: 0; display: flex; flex-direction: column; align-items: center; z-index: 10; pointer-events: none; }
-        .header-title { background: #fff; width: 100%; text-align: center; padding: 10px 0; color: #008ecc; font-size: 22px; font-weight: bold; }
-        .sub-title { color: white; background: #005a82; width: 100%; text-align: center; padding: 5px 0; font-size: 16px; }
-        
-        #selector { 
-            position: absolute; inset: 0; background: rgba(0, 71, 102, 0.98); 
-            display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 100; 
-        }
-        .equipos { display: flex; gap: 15px; margin-top: 20px; flex-wrap: wrap; justify-content: center; }
-        .btn-escudo { 
-            background: white; border: 4px solid #f1c40f; border-radius: 15px; 
-            width: 85px; height: 85px; cursor: pointer; display: flex; 
-            align-items: center; justify-content: center; overflow: hidden;
-            -webkit-tap-highlight-color: transparent;
-        }
-        .btn-escudo img { width: 85%; height: 85%; object-fit: contain; pointer-events: none; }
+        body { margin: 0; overflow: hidden; background: #008ecc; font-family: sans-serif; touch-action: none; }
+        #ui-layer { position: absolute; width: 100%; top: 0; left: 0; text-align: center; z-index: 10; pointer-events: none; }
+        .header-title { background: #fff; padding: 10px 0; color: #008ecc; font-size: 20px; font-weight: bold; }
+        .sub-title { color: white; background: #005a82; padding: 5px 0; font-size: 16px; }
+        #selector { position: absolute; inset: 0; background: #004766; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 1000; }
+        .equipos { display: flex; gap: 10px; margin-top: 20px; }
+        .btn-escudo { background: white; border: 5px solid #f1c40f; border-radius: 10px; width: 85px; height: 85px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+        .btn-escudo img { width: 80%; pointer-events: none; }
         canvas { display: block; }
-        .hidden { display: none !important; }
     </style>
 </head>
 <body>
 
 <div id="ui-layer">
     <div class="header-title">Super Liga Chilena Pro</div>
-    <div id="subStatus" class="sub-title">ELIGE TU EQUIPO</div>
+    <div id="subStatus" class="sub-title">ESPERANDO SELECCIÓN...</div>
 </div>
 
 <div id="selector">
     <div class="equipos">
-        <div class="btn-escudo" id="btn-0">
-            <img src="https://images.cults3d.com/BEZH-sNJ_jgLnvjPRCVd9mlt7yM=/516x516/filters:no_upscale():format(webp)/https://fbi.cults3d.com/uploaders/29012604/illustration-file/951c0e28-495a-4d1c-836f-8d6cd82dc01c/descarga.png">
-        </div>
-        <div class="btn-escudo" id="btn-1">
-            <img src="https://p7.hiclipart.com/preview/967/1019/627/colo-colo-chilean-primera-division-club-universidad-de-chile-c-d-antofagasta-club-deportivo-palestino-football.jpg">
-        </div>
-        <div class="btn-escudo" id="btn-2">
-            <img src="https://fbi.cults3d.com/uploaders/14728184/illustration-file/918b423e-856e-4e3a-8f11-4d7e2b0cf7d3/U-CATOLICA.png">
-        </div>
+        <div class="btn-escudo" onclick="prepararJuego(0)"><img src="https://images.cults3d.com/BEZH-sNJ_jgLnvjPRCVd9mlt7yM=/516x516/filters:no_upscale():format(webp)/https://fbi.cults3d.com/uploaders/29012604/illustration-file/951c0e28-495a-4d1c-836f-8d6cd82dc01c/descarga.png"></div>
+        <div class="btn-escudo" onclick="prepararJuego(1)"><img src="https://p7.hiclipart.com/preview/967/1019/627/colo-colo-chilean-primera-division-club-universidad-de-chile-c-d-antofagasta-club-deportivo-palestino-football.jpg"></div>
+        <div class="btn-escudo" onclick="prepararJuego(2)"><img src="https://fbi.cults3d.com/uploaders/14728184/illustration-file/918b423e-856e-4e3a-8f11-4d7e2b0cf7d3/U-CATOLICA.png"></div>
     </div>
-    <p style="color:white; margin-top:20px; font-weight:bold;">TOCA UN ESCUDO PARA INICIAR</p>
+    <h3 id="txtCarga" style="color:white; margin-top:20px;">ELIGE TU EQUIPO</h3>
 </div>
 
 <canvas id="game"></canvas>
@@ -53,8 +37,9 @@
 <script>
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
-const subStatus = document.getElementById("subStatus");
 const selector = document.getElementById("selector");
+const subStatus = document.getElementById("subStatus");
+const txtCarga = document.getElementById("txtCarga");
 
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
@@ -71,37 +56,33 @@ let imagenesRivales = [];
 let juegoActivo = false;
 let goles = 0;
 let obstaculos = [];
-const p = { x: 60, y: 0, w: 70, h: 70, dy: 0, salto: 16, grav: 0.8, suelo: false };
+const p = { x: 50, y: 0, w: 60, h: 60, dy: 0, salto: 15, grav: 0.7, suelo: false };
 
-// Eventos de selección para los botones
-[0, 1, 2].forEach(id => {
-    const btn = document.getElementById('btn-' + id);
-    // Usamos touchstart para que responda rápido en el Moto G
-    btn.addEventListener('touchstart', (e) => { e.preventDefault(); iniciar(id); });
-    btn.addEventListener('mousedown', () => { iniciar(id); });
-});
-
-function iniciar(idx) {
-    if(juegoActivo) return;
-
+function prepararJuego(idx) {
+    txtCarga.innerText = "CARGANDO CANCHA...";
+    
+    // 1. Cargar imagen del jugador
     imgJugador.src = links[idx];
     
-    // Cargar rivales (los otros dos)
+    // 2. Cargar rivales
     imagenesRivales = [];
-    links.forEach((link, i) => {
-        if (i !== idx) {
+    links.forEach((l, i) => {
+        if(i !== idx) {
             let img = new Image();
             img.crossOrigin = "anonymous";
-            img.src = link;
+            img.src = l;
             imagenesRivales.push(img);
         }
     });
 
-    selector.classList.add("hidden");
-    subStatus.innerText = "¡GOLES: 0!";
-    juegoActivo = true;
-    p.y = canvas.height - 180;
-    requestAnimationFrame(loop);
+    // 3. ESPERA DE SEGURIDAD: Solo inicia cuando la imagen principal cargue
+    imgJugador.onload = function() {
+        selector.style.display = "none";
+        juegoActivo = true;
+        p.y = canvas.height - 150;
+        subStatus.innerText = "GOLES: 0";
+        loop();
+    };
 }
 
 function saltar() {
@@ -114,7 +95,7 @@ function saltar() {
 function spawn() {
     if (juegoActivo && imagenesRivales.length > 0) {
         let imgR = imagenesRivales[Math.floor(Math.random() * imagenesRivales.length)];
-        obstaculos.push({ x: canvas.width, w: 60, h: 60, img: imgR });
+        obstaculos.push({ x: canvas.width, w: 55, h: 55, img: imgR });
     }
 }
 
@@ -123,7 +104,7 @@ function loop() {
 
     p.dy += p.grav;
     p.y += p.dy;
-    const groundY = canvas.height - 60;
+    const groundY = canvas.height - 50;
 
     if (p.y + p.h > groundY) {
         p.y = groundY - p.h;
@@ -132,34 +113,35 @@ function loop() {
     }
 
     obstaculos.forEach((o, i) => {
-        o.x -= 7;
-        // Colisión más precisa
-        if (p.x < o.x + o.w - 15 && p.x + p.w - 15 > o.x && p.y + p.h > groundY - o.h) {
+        o.x -= 6;
+        if (p.x < o.x + o.w - 10 && p.x + p.w - 10 > o.x && p.y + p.h > groundY - o.h) {
             juegoActivo = false;
-            alert("¡TARJETA ROJA! FINAL: " + goles);
+            alert("¡TARJETA ROJA! GOLES: " + goles);
             location.reload();
         }
         if (o.x + o.w < 0) { 
             obstaculos.splice(i, 1); 
             goles++; 
-            subStatus.innerText = "¡GOLES: " + goles + "!"; 
+            subStatus.innerText = "GOLES: " + goles; 
         }
     });
 
+    // DIBUJO
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
-    // Pasto y línea
-    ctx.fillStyle = "#4caf50";
-    ctx.fillRect(0, canvas.height - 60, canvas.width, 60);
-    ctx.fillStyle = "white";
-    ctx.fillRect(0, canvas.height - 65, canvas.width, 5); 
+    // Suelo
+    ctx.fillStyle = "#2ecc71";
+    ctx.fillRect(0, canvas.height - 50, canvas.width, 50);
 
-    // Dibujar jugador si ya cargó
-    if(imgJugador.complete) ctx.drawImage(imgJugador, p.x, p.y, p.w, p.h);
+    // Solo dibujamos si las imágenes están listas
+    if(imgJugador.complete) {
+        ctx.drawImage(imgJugador, p.x, p.y, p.w, p.h);
+    }
     
-    // Dibujar obstáculos si ya cargaron
     obstaculos.forEach(o => {
-        if(o.img.complete) ctx.drawImage(o.img, o.x, groundY - o.h, o.w, o.h);
+        if(o.img.complete) {
+            ctx.drawImage(o.img, o.x, groundY - o.h, o.w, o.h);
+        }
     });
 
     requestAnimationFrame(loop);
@@ -168,9 +150,10 @@ function loop() {
 window.addEventListener("touchstart", (e) => { 
     if(juegoActivo) { e.preventDefault(); saltar(); }
 }, {passive: false});
+
 window.addEventListener("mousedown", () => { if(juegoActivo) saltar(); });
 
-setInterval(spawn, 1500);
+setInterval(spawn, 1700);
 </script>
 </body>
 </html>
