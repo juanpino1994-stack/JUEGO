@@ -21,22 +21,13 @@
 
 <div id="ui-layer">
     <div class="header-title">Super Liga Chilena Pro</div>
-    <div id="subStatus" class="sub-title">ELIGE TU EQUIPO</div>
+    <div id="subStatus" class="sub-title">CARGANDO IMÁGENES...</div>
 </div>
 
 <div id="selector">
-    <div class="equipos">
-        <div class="btn-escudo" onclick="iniciar(0)">
-            <img src="https://images.cults3d.com/BEZH-sNJ_jgLnvjPRCVd9mlt7yM=/516x516/filters:no_upscale():format(webp)/https://fbi.cults3d.com/uploaders/29012604/illustration-file/951c0e28-495a-4d1c-836f-8d6cd82dc01c/descarga.png">
+    <div class="equipos" id="botonesEquipos">
         </div>
-        <div class="btn-escudo" onclick="iniciar(1)">
-            <img src="https://p7.hiclipart.com/preview/967/1019/627/colo-colo-chilean-primera-division-club-universidad-de-chile-c-d-antofagasta-club-deportivo-palestino-football.jpg">
-        </div>
-        <div class="btn-escudo" onclick="iniciar(2)">
-            <img src="https://fbi.cults3d.com/uploaders/14728184/illustration-file/918b423e-856e-4e3a-8f11-4d7e2b0cf7d3/U-CATOLICA.png">
-        </div>
-    </div>
-    <p style="color:white; margin-top:15px; font-weight:bold;">TOCA UN EQUIPO PARA JUGAR</p>
+    <p id="msgCarga" style="color:white; margin-top:15px; font-weight:bold;">ESPERANDO LOGOS...</p>
 </div>
 
 <canvas id="game"></canvas>
@@ -46,5 +37,128 @@ const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 const subStatus = document.getElementById("subStatus");
 const selector = document.getElementById("selector");
+const botonesEquipos = document.getElementById("botonesEquipos");
+const msgCarga = document.getElementById("msgCarga");
 
-canvas.width = window.
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
+const links = [
+    "https://images.cults3d.com/BEZH-sNJ_jgLnvjPRCVd9mlt7yM=/516x516/filters:no_upscale():format(webp)/https://fbi.cults3d.com/uploaders/29012604/illustration-file/951c0e28-495a-4d1c-836f-8d6cd82dc01c/descarga.png",
+    "https://p7.hiclipart.com/preview/967/1019/627/colo-colo-chilean-primera-division-club-universidad-de-chile-c-d-antofagasta-club-deportivo-palestino-football.jpg",
+    "https://fbi.cults3d.com/uploaders/14728184/illustration-file/918b423e-856e-4e3a-8f11-4d7e2b0cf7d3/U-CATOLICA.png"
+];
+
+let imagenesCargadas = [];
+let cargadasContador = 0;
+
+// PRECARGA DE IMÁGENES
+links.forEach((src, index) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.src = src;
+    img.onload = () => {
+        imagenesCargadas[index] = img;
+        cargadasContador++;
+        crearBoton(index, src);
+        if (cargadasContador === links.length) {
+            msgCarga.innerText = "¡LISTO! ELIGE TU EQUIPO";
+            subStatus.innerText = "EQUIPOS LISTOS";
+        }
+    };
+    img.onerror = () => {
+        console.error("Error cargando: " + src);
+        msgCarga.innerText = "ERROR AL CARGAR LOGOS";
+    };
+});
+
+function crearBoton(idx, src) {
+    const div = document.createElement("div");
+    div.className = "btn-escudo";
+    div.onclick = () => iniciar(idx);
+    const img = document.createElement("img");
+    img.src = src;
+    div.appendChild(img);
+    botonesEquipos.appendChild(div);
+}
+
+let imgJugador, imagenesRivales = [];
+let juegoActivo = false;
+let goles = 0;
+let obstaculos = [];
+
+const p = { x: 60, y: 0, w: 70, h: 70, dy: 0, salto: 16, grav: 0.8, suelo: false };
+
+function iniciar(idx) {
+    imgJugador = imagenesCargadas[idx];
+    imagenesRivales = imagenesCargadas.filter((_, i) => i !== idx);
+
+    selector.classList.add("hidden");
+    subStatus.innerText = "¡GOLES: 0!";
+    juegoActivo = true;
+    p.y = canvas.height - 180;
+    loop();
+}
+
+function saltar() {
+    if (p.suelo && juegoActivo) {
+        p.dy = -p.salto;
+        p.suelo = false;
+    }
+}
+
+function spawn() {
+    if (juegoActivo) {
+        let imgR = imagenesRivales[Math.floor(Math.random() * imagenesRivales.length)];
+        obstaculos.push({ x: canvas.width, w: 65, h: 65, img: imgR });
+    }
+}
+
+function loop() {
+    if (!juegoActivo) return;
+    p.dy += p.grav;
+    p.y += p.dy;
+    const groundY = canvas.height - 60;
+
+    if (p.y + p.h > groundY) {
+        p.y = groundY - p.h;
+        p.dy = 0;
+        p.suelo = true;
+    }
+
+    obstaculos.forEach((o, i) => {
+        o.x -= 7;
+        if (p.x < o.x + o.w - 20 && p.x + p.w - 20 > o.x && p.y + p.h > groundY - o.h) {
+            juegoActivo = false;
+            alert("¡TARJETA ROJA! FINAL: " + goles);
+            location.reload();
+        }
+        if (o.x + o.w < 0) { 
+            obstaculos.splice(i, 1); 
+            goles++; 
+            subStatus.innerText = "¡GOLES: " + goles + "!"; 
+        }
+    });
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    // Césped
+    ctx.fillStyle = "#4caf50";
+    ctx.fillRect(0, canvas.height - 60, canvas.width, 60);
+    ctx.fillStyle = "white";
+    ctx.fillRect(0, canvas.height - 65, canvas.width, 5); 
+
+    // Dibujar
+    ctx.drawImage(imgJugador, p.x, p.y, p.w, p.h);
+    obstaculos.forEach(o => {
+        ctx.drawImage(o.img, o.x, groundY - o.h, o.w, o.h);
+    });
+
+    requestAnimationFrame(loop);
+}
+
+window.addEventListener("touchstart", (e) => { e.preventDefault(); saltar(); }, {passive: false});
+window.addEventListener("mousedown", saltar);
+setInterval(spawn, 1500);
+</script>
+</body>
+</html>
