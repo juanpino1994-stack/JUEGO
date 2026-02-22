@@ -3,135 +3,145 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Juego Estilo Mario</title>
+    <title>Liga Chilena - Selección</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #5c94fc; font-family: 'Courier New', sans-serif; touch-action: none; }
-        canvas { display: block; background: #5c94fc; }
+        body { margin: 0; overflow: hidden; background: #2c3e50; font-family: 'Arial Black', sans-serif; touch-action: none; }
+        canvas { display: block; background: #87CEEB; }
         #overlay {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             display: flex; flex-direction: column; justify-content: center;
-            align-items: center; background: rgba(0,0,0,0.5); color: white; text-align: center;
+            align-items: center; background: rgba(0,0,0,0.85); color: white; text-align: center; z-index: 20;
         }
-        h1 { margin: 0; font-size: 2.5em; text-shadow: 2px 2px #000; }
-        p { font-size: 1.2em; }
+        .selector { display: flex; gap: 20px; margin-top: 20px; flex-wrap: wrap; justify-content: center; }
+        .escudo-btn { 
+            width: 80px; height: 80px; cursor: pointer; border: 4px solid transparent; 
+            background: white; border-radius: 10px; padding: 5px; transition: 0.3s;
+        }
+        .escudo-btn:active { transform: scale(0.9); border-color: #f1c40f; }
+        h1 { color: #f1c40f; margin-bottom: 10px; font-size: 1.5em; }
+        .hidden { display: none !important; }
     </style>
 </head>
 <body>
 
 <div id="overlay">
-    <h1 id="title">SUPER MARIO</h1>
-    <p id="msg">TOCA PARA EMPEZAR</p>
+    <h1 id="title">ELIGE TU EQUIPO</h1>
+    <div id="selectorContainer" class="selector">
+        <img src="https://upload.wikimedia.org/wikipedia/commons/f/fe/Logo_Colo-Colo_2023.png" class="escudo-btn" onclick="seleccionar(0)">
+        <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/e/e0/Logo_Universidad_de_Chile.svg/1200px-Logo_Universidad_de_Chile.svg.png" class="escudo-btn" onclick="seleccionar(1)">
+        <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/e/e9/Escudo_Club_Deportivo_Universidad_Catolica.svg/1200px-Escudo_Club_Deportivo_Universidad_Catolica.svg.png" class="escudo-btn" onclick="seleccionar(2)">
+    </div>
+    <p id="msg" style="margin-top:20px"></p>
+    <button id="retryBtn" class="hidden" onclick="location.reload()" style="padding:10px 20px; background:#f1c40f; border:none; font-weight:bold; border-radius:5px;">CAMBIAR EQUIPO</button>
 </div>
+
 <canvas id="game"></canvas>
 
 <script>
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 const overlay = document.getElementById("overlay");
-const msg = document.getElementById("msg");
+const selectorContainer = document.getElementById("selectorContainer");
 
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 
+const rutas = [
+    "https://upload.wikimedia.org/wikipedia/commons/f/fe/Logo_Colo-Colo_2023.png",
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e0/Logo_Universidad_de_Chile.svg/1200px-Logo_Universidad_de_Chile.svg.png",
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e9/Escudo_Club_Deportivo_Universidad_Catolica.svg/1200px-Escudo_Club_Deportivo_Universidad_Catolica.svg.png"
+];
+
+let imagenes = rutas.map(r => { const i = new Image(); i.src = r; return i; });
+
 let playing = false;
 let score = 0;
 let obstacles = [];
+let imgJugador, enemigosDisp = [];
 
-const player = {
-    x: 50, y: 0, w: 40, h: 40, dy: 0, 
-    jump: 15, grav: 0.8, grounded: false
-};
+const player = { x: 50, y: 0, w: 60, h: 60, dy: 0, jump: 16, grav: 0.8, grounded: false };
 
-function start() {
-    if (!playing) {
+function seleccionar(index) {
+    imgJugador = imagenes[index];
+    // Los enemigos son los equipos que NO elegiste
+    enemigosDisp = imagenes.filter((_, i) => i !== index);
+    
+    document.getElementById("title").innerText = "¡A JUGAR!";
+    selectorContainer.classList.add("hidden");
+    document.getElementById("msg").innerText = "TOCA PARA SALTAR";
+    
+    setTimeout(() => {
         playing = true;
-        score = 0;
-        obstacles = [];
-        player.y = canvas.height - 100;
-        overlay.style.display = "none";
-        // Reiniciar bucle si fuera necesario
-    } else {
-        if (player.grounded) {
-            player.dy = -player.jump;
-            player.grounded = false;
-        }
-    }
+        overlay.classList.add("hidden");
+        loop();
+    }, 500);
 }
 
 function spawn() {
     if (playing) {
-        obstacles.push({ x: canvas.width, w: 30, h: 50 });
+        const imgEne = enemigosDisp[Math.floor(Math.random() * enemigosDisp.length)];
+        obstacles.push({ x: canvas.width, w: 55, h: 55, img: imgEne });
     }
 }
 
 function update() {
     if (!playing) return;
-
     player.dy += player.grav;
     player.y += player.dy;
+    const groundY = canvas.height - 50;
 
-    const ground = canvas.height - 40;
-    if (player.y + player.h > ground) {
-        player.y = ground - player.h;
+    if (player.y + player.h > groundY) {
+        player.y = groundY - player.h;
         player.dy = 0;
         player.grounded = true;
     }
 
     obstacles.forEach((obs, i) => {
-        obs.x -= 6;
-        // Colisión
-        if (player.x < obs.x + obs.w && player.x + player.w > obs.x &&
-            player.y < ground - obs.h + player.h && player.y + player.h > ground - obs.h) {
-            playing = false;
-            overlay.style.display = "flex";
-            document.getElementById("title").innerText = "GAME OVER";
-            msg.innerText = "Puntos: " + score + "\n\nTOCA PARA REINTENTAR";
+        obs.x -= 8;
+        if (player.x < obs.x + obs.w - 15 && player.x + player.w - 15 > obs.x &&
+            player.y + player.h > groundY - obs.h) {
+            morir();
         }
-        if (obs.x + obs.w < 0) {
-            obstacles.splice(i, 1);
-            score++;
-        }
+        if (obs.x + obs.w < 0) { obstacles.splice(i, 1); score++; }
     });
+}
+
+function morir() {
+    playing = false;
+    overlay.classList.remove("hidden");
+    document.getElementById("title").innerText = "¡TARJETA ROJA!";
+    document.getElementById("msg").innerText = "GOLES: " + score;
+    document.getElementById("retryBtn").classList.remove("hidden");
 }
 
 function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    // Suelo
-    ctx.fillStyle = "#74bf2e";
-    ctx.fillRect(0, canvas.height - 40, canvas.width, 40);
-
-    // Jugador (Cubo Rojo)
-    ctx.fillStyle = "#ff0000";
-    ctx.fillRect(player.x, player.y, player.w, player.h);
-
-    // Obstáculos (Cactus/Tuberías)
+    // Césped
     ctx.fillStyle = "#2ecc71";
-    obstacles.forEach(obs => {
-        ctx.fillRect(obs.x, canvas.height - 40 - obs.h, obs.w, obs.h);
-    });
-
+    ctx.fillRect(0, canvas.height - 50, canvas.width, 50);
+    // Jugador elegido
+    ctx.drawImage(imgJugador, player.x, player.y, player.w, player.h);
+    // Obstáculos (rivales)
+    obstacles.forEach(obs => { ctx.drawImage(obs.img, obs.x, canvas.height - 50 - obs.h, obs.w, obs.h); });
     // Score
-    if (playing) {
-        ctx.fillStyle = "white";
-        ctx.font = "25px Arial";
-        ctx.fillText("Score: " + score, 20, 40);
-    }
+    ctx.fillStyle = "white";
+    ctx.font = "bold 24px Arial";
+    ctx.fillText("GOLES: " + score, 20, 50);
 }
 
 function loop() {
+    if(!playing) return;
     update();
     draw();
     requestAnimationFrame(loop);
 }
 
-// Eventos unificados (Cualquier clic o toque activa la función start/saltar)
-window.addEventListener("mousedown", (e) => { e.preventDefault(); start(); });
-window.addEventListener("touchstart", (e) => { e.preventDefault(); start(); }, {passive: false});
-window.addEventListener("keydown", (e) => { if(e.code === "Space") start(); });
+window.addEventListener("touchstart", (e) => { 
+    if(playing) { player.dy = player.grounded ? -player.jump : player.dy; player.grounded = false; }
+});
+window.addEventListener("mousedown", () => { if(playing && player.grounded) { player.dy = -player.jump; player.grounded = false; } });
 
-setInterval(spawn, 1500);
-loop();
+setInterval(spawn, 1300);
 </script>
 </body>
 </html>
