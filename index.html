@@ -5,36 +5,39 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Super Liga Chilena Pro</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #008ecc; font-family: sans-serif; touch-action: none; }
-        #ui { position: absolute; width: 100%; top: 0; text-align: center; z-index: 10; color: white; pointer-events: none; }
+        body { margin: 0; overflow: hidden; background: #008ecc; font-family: sans-serif; touch-action: none; -webkit-user-select: none; }
+        #ui { position: absolute; width: 100%; top: 0; text-align: center; z-index: 10; pointer-events: none; }
+        .header { background: #fff; padding: 10px 0; color: #008ecc; font-size: 20px; font-weight: bold; border-bottom: 2px solid #005a82; }
+        .score-bar { color: white; background: #005a82; padding: 5px 0; font-size: 16px; font-weight: bold; }
+        
         #selector { 
             position: absolute; inset: 0; background: #004766; 
-            display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 100; 
+            display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 1000; 
         }
-        .equipos { display: flex; gap: 10px; margin-bottom: 20px; }
+        .equipos { display: flex; gap: 12px; margin-bottom: 20px; }
         .btn { 
-            background: white; border: 4px solid #f1c40f; border-radius: 10px; 
-            width: 80px; height: 80px; display: flex; align-items: center; 
-            justify-content: center; cursor: pointer;
+            background: white; border: 4px solid #f1c40f; border-radius: 12px; 
+            width: 85px; height: 85px; display: flex; align-items: center; 
+            justify-content: center; overflow: hidden; cursor: pointer;
         }
-        .btn img { max-width: 80%; max-height: 80%; pointer-events: none; }
-        canvas { display: block; }
+        .btn img { max-width: 85%; max-height: 85%; object-fit: contain; pointer-events: none; }
+        canvas { display: block; background: #008ecc; }
     </style>
 </head>
 <body>
 
 <div id="ui">
-    <h2 style="background:white; color:#008ecc; margin:0; padding:10px;">Super Liga Chilena</h2>
-    <div id="score" style="background:#005a82; padding:5px;">ELIGE TU EQUIPO</div>
+    <div class="header">Super Liga Chilena Pro</div>
+    <div id="score" class="score-bar">ELIGE TU EQUIPO</div>
 </div>
 
 <div id="selector">
     <div class="equipos">
-        <div class="btn" onclick="play(0)"><img src="uno.png"></div>
-        <div class="btn" onclick="play(1)"><img src="colo.png"></div>
-        <div class="btn" onclick="play(2)"><img src="uc.png"></div>
+        <div class="btn" onclick="comenzar(0)"><img src="u.png"></div>
+        <div class="btn" onclick="comenzar(1)"><img src="colo.png"></div>
+        <div class="btn" onclick="comenzar(2)"><img src="uc.png"></div>
     </div>
-    <b style="color:white;">TOCA UN ESCUDO</b>
+    <b style="color:white; font-size: 18px;">TOCA UN ESCUDO PARA INICIAR</b>
 </div>
 
 <canvas id="game"></canvas>
@@ -48,81 +51,46 @@ const scoreDisp = document.getElementById("score");
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 
-const files = ["uno.png", "colo.png", "uc.png"];
-let playerImg = new Image();
-let enemyImgs = [];
-let active = false;
-let score = 0;
-let obs = [];
+// LISTA DE ARCHIVOS REALES DE TU REPOSITORIO
+const archivos = ["u.png", "colo.png", "uc.png"];
+let imgPlayer = new Image();
+let imgsEnemigos = [];
+let jugando = false;
+let goles = 0;
+let listaObs = [];
 
-const p = { x: 50, y: 0, w: 60, h: 60, dy: 0, jump: 15, grav: 0.7, onG: false };
+// Personaje
+const p = { x: 50, y: 0, w: 65, h: 65, dy: 0, salto: 16, grav: 0.8, suelo: false };
 
-function play(idx) {
-    // 1. Asignar imágenes
-    playerImg.src = files[idx];
-    enemyImgs = files.filter((_, i) => i !== idx).map(f => {
-        let img = new Image();
-        img.src = f;
-        return img;
+function comenzar(idx) {
+    // 1. Cargar el escudo elegido
+    imgPlayer.src = archivos[idx];
+    
+    // 2. Cargar los otros dos como enemigos
+    imgsEnemigos = [];
+    archivos.forEach((nombre, i) => {
+        if(i !== idx) {
+            let img = new Image();
+            img.src = nombre;
+            imgsEnemigos.push(img);
+        }
     });
 
-    // 2. Limpiar y arrancar (Igual que el Máster)
+    // 3. Iniciar lógica
     selector.style.display = "none";
-    active = true;
-    score = 0;
-    obs = [];
+    jugando = true;
+    goles = 0;
+    listaObs = [];
     p.y = canvas.height - 150;
-    scoreDisp.innerText = "GOLES: 0";
+    scoreDisp.innerText = "¡GOLES: 0!";
     
-    requestAnimationFrame(update);
+    requestAnimationFrame(bucle);
 }
 
-function update() {
-    if (!active) return;
+function bucle() {
+    if (!jugando) return;
 
+    // Física
     p.dy += p.grav;
     p.y += p.dy;
-    const floor = canvas.height - 50;
-
-    if (p.y + p.h > floor) {
-        p.y = floor - p.h;
-        p.dy = 0;
-        p.onG = true;
-    }
-
-    obs.forEach((o, i) => {
-        o.x -= 6;
-        // Colisión
-        if (p.x < o.x + 40 && p.x + 40 > o.x && p.y + p.h > floor - 40) {
-            active = false;
-            alert("FIN DEL PARTIDO. GOLES: " + score);
-            location.reload();
-        }
-        if (o.x + 50 < 0) { obs.splice(i, 1); score++; scoreDisp.innerText = "GOLES: " + score; }
-    });
-
-    // Dibujo
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = "#2ecc71";
-    ctx.fillRect(0, floor, canvas.width, 50);
-
-    ctx.drawImage(playerImg, p.x, p.y, p.w, p.h);
-    obs.forEach(o => ctx.drawImage(o.img, o.x, floor - 50, 50, 50));
-
-    requestAnimationFrame(update);
-}
-
-function jump() { if(p.onG && active) { p.dy = -p.jump; p.onG = false; } }
-
-window.addEventListener("touchstart", (e) => { if(active) { e.preventDefault(); jump(); } }, {passive: false});
-window.addEventListener("mousedown", jump);
-
-setInterval(() => {
-    if(active) {
-        let rnd = enemyImgs[Math.floor(Math.random() * enemyImgs.length)];
-        obs.push({ x: canvas.width, img: rnd });
-    }
-}, 1800);
-</script>
-</body>
-</html>
+    const ground = canvas.height - 6
