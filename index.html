@@ -9,23 +9,11 @@
         #ui-layer { position: absolute; width: 100%; top: 0; left: 0; text-align: center; z-index: 10; pointer-events: none; }
         .header-title { background: #fff; padding: 10px 0; color: #008ecc; font-size: 20px; font-weight: bold; }
         .sub-title { color: white; background: #005a82; padding: 5px 0; font-size: 16px; }
-        
-        #selector { 
-            position: absolute; inset: 0; background: #004766; 
-            display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 1000; 
-        }
-        .equipos { display: flex; gap: 10px; margin-top: 20px; align-items: center; }
-        
-        /* Ajuste para que los logos no se salgan, especialmente la UC */
-        .btn-escudo { 
-            background: white; border: 4px solid #f1c40f; border-radius: 12px; 
-            width: 80px; height: 80px; display: flex; align-items: center; 
-            justify-content: center; overflow: hidden; cursor: pointer;
-        }
-        .btn-escudo img { 
-            max-width: 90%; max-height: 90%; object-fit: contain; pointer-events: none; 
-        }
-        
+        #selector { position: absolute; inset: 0; background: #004766; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 1000; }
+        .equipos { display: flex; gap: 10px; margin-top: 20px; }
+        .btn-escudo { background: white; border: 4px solid #f1c40f; border-radius: 12px; width: 85px; height: 85px; display: flex; align-items: center; justify-content: center; overflow: hidden; cursor: pointer; }
+        /* Ajuste clave para que la UC no se estire ni se salga */
+        .btn-escudo img { max-width: 85%; max-height: 85%; object-fit: contain; pointer-events: none; }
         canvas { display: block; }
     </style>
 </head>
@@ -33,16 +21,16 @@
 
 <div id="ui-layer">
     <div class="header-title">Super Liga Chilena Pro</div>
-    <div id="subStatus" class="sub-title">ESPERANDO SELECCIÓN...</div>
+    <div id="subStatus" class="sub-title">¡ELIGE TU EQUIPO!</div>
 </div>
 
 <div id="selector">
     <div class="equipos">
-        <div class="btn-escudo" onclick="forzarInicio(0)"><img src="https://images.cults3d.com/BEZH-sNJ_jgLnvjPRCVd9mlt7yM=/516x516/filters:no_upscale():format(webp)/https://fbi.cults3d.com/uploaders/29012604/illustration-file/951c0e28-495a-4d1c-836f-8d6cd82dc01c/descarga.png"></div>
-        <div class="btn-escudo" onclick="forzarInicio(1)"><img src="https://p7.hiclipart.com/preview/967/1019/627/colo-colo-chilean-primera-division-club-universidad-de-chile-c-d-antofagasta-club-deportivo-palestino-football.jpg"></div>
-        <div class="btn-escudo" onclick="forzarInicio(2)"><img src="https://fbi.cults3d.com/uploaders/14728184/illustration-file/918b423e-856e-4e3a-8f11-4d7e2b0cf7d3/U-CATOLICA.png"></div>
+        <div class="btn-escudo" onclick="empezar(0)"><img src="https://images.cults3d.com/BEZH-sNJ_jgLnvjPRCVd9mlt7yM=/516x516/filters:no_upscale():format(webp)/https://fbi.cults3d.com/uploaders/29012604/illustration-file/951c0e28-495a-4d1c-836f-8d6cd82dc01c/descarga.png"></div>
+        <div class="btn-escudo" onclick="empezar(1)"><img src="https://p7.hiclipart.com/preview/967/1019/627/colo-colo-chilean-primera-division-club-universidad-de-chile-c-d-antofagasta-club-deportivo-palestino-football.jpg"></div>
+        <div class="btn-escudo" onclick="empezar(2)"><img src="https://fbi.cults3d.com/uploaders/14728184/illustration-file/918b423e-856e-4e3a-8f11-4d7e2b0cf7d3/U-CATOLICA.png"></div>
     </div>
-    <h3 id="txtCarga" style="color:white; margin-top:30px;">TOCA TU EQUIPO</h3>
+    <h3 style="color:white; margin-top:25px;">TOCA UN ESCUDO PARA JUGAR</h3>
 </div>
 
 <canvas id="game"></canvas>
@@ -62,115 +50,93 @@ const links = [
     "https://fbi.cults3d.com/uploaders/14728184/illustration-file/918b423e-856e-4e3a-8f11-4d7e2b0cf7d3/U-CATOLICA.png"
 ];
 
-let imgJugador = new Image();
-imgJugador.crossOrigin = "anonymous";
-let imagenesRivales = [];
-let juegoActivo = false;
-let goles = 0;
-let obstaculos = [];
-const p = { x: 50, y: 0, w: 60, h: 60, dy: 0, salto: 15, grav: 0.7, suelo: false };
+let jugadorImg = new Image();
+let rivalesImgs = [];
+let activo = false;
+let puntos = 0;
+let obstáculos = [];
 
-function forzarInicio(idx) {
-    document.getElementById("txtCarga").innerText = "INICIANDO...";
+const p = { x: 50, y: 0, w: 65, h: 65, dy: 0, salto: 15, grav: 0.7, suelo: false };
+
+function empezar(idx) {
+    // IMPORTANTE: Quitamos el filtro de seguridad para que el canvas pueda dibujar la imagen
+    jugadorImg.crossOrigin = "anonymous";
+    jugadorImg.src = links[idx];
     
-    imgJugador.src = links[idx];
-    
-    // Cargar rivales
-    imagenesRivales = [];
+    rivalesImgs = [];
     links.forEach((l, i) => {
         if(i !== idx) {
             let img = new Image();
             img.crossOrigin = "anonymous";
             img.src = l;
-            imagenesRivales.push(img);
+            rivalesImgs.push(img);
         }
     });
 
-    // SISTEMA ANTIBLOQUEO: Quitamos el menú inmediatamente
     selector.style.display = "none";
-    juegoActivo = true;
+    activo = true;
     p.y = canvas.height - 150;
     subStatus.innerText = "GOLES: 0";
-    
-    // Iniciamos el bucle sin esperar a que carguen (se dibujarán apenas bajen)
-    requestAnimationFrame(loop);
+    loop();
 }
 
 function saltar() {
-    if (p.suelo && juegoActivo) {
+    if (p.suelo && activo) {
         p.dy = -p.salto;
         p.suelo = false;
     }
 }
 
-function spawn() {
-    if (juegoActivo && imagenesRivales.length > 0) {
-        let imgR = imagenesRivales[Math.floor(Math.random() * imagenesRivales.length)];
-        obstaculos.push({ x: canvas.width, w: 55, h: 55, img: imgR });
+function crearObstaculo() {
+    if (activo && rivalesImgs.length > 0) {
+        let imgR = rivalesImgs[Math.floor(Math.random() * rivalesImgs.length)];
+        obstáculos.push({ x: canvas.width, w: 60, h: 60, img: imgR });
     }
 }
 
 function loop() {
-    if (!juegoActivo) return;
+    if (!activo) return;
 
     p.dy += p.grav;
     p.y += p.dy;
-    const groundY = canvas.height - 50;
+    const sueloY = canvas.height - 50;
 
-    if (p.y + p.h > groundY) {
-        p.y = groundY - p.h;
+    if (p.y + p.h > sueloY) {
+        p.y = sueloY - p.h;
         p.dy = 0;
         p.suelo = true;
     }
 
-    obstaculos.forEach((o, i) => {
-        o.x -= 6;
-        if (p.x < o.x + o.w - 15 && p.x + p.w - 15 > o.x && p.y + p.h > groundY - o.h) {
-            juegoActivo = false;
-            alert("¡TARJETA ROJA! GOLES: " + goles);
+    obstáculos.forEach((o, i) => {
+        o.x -= 7;
+        // Colisión
+        if (p.x < o.x + o.w - 15 && p.x + p.w - 15 > o.x && p.y + p.h > sueloY - o.h) {
+            activo = false;
+            alert("¡TARJETA ROJA! Goles: " + puntos);
             location.reload();
         }
         if (o.x + o.w < 0) { 
-            obstaculos.splice(i, 1); 
-            goles++; 
-            subStatus.innerText = "GOLES: " + goles; 
+            obstáculos.splice(i, 1); 
+            puntos++; 
+            subStatus.innerText = "GOLES: " + puntos; 
         }
     });
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
-    // Pasto
+    // Dibujar Suelo
     ctx.fillStyle = "#2ecc71";
     ctx.fillRect(0, canvas.height - 50, canvas.width, 50);
 
-    // Dibujamos con validación de carga
-    if(imgJugador.complete && imgJugador.naturalWidth !== 0) {
-        ctx.drawImage(imgJugador, p.x, p.y, p.w, p.h);
+    // DIBUJAR JUGADOR (Si no carga la imagen, dibuja un cuadro blanco para que al menos sepas dónde estás)
+    if(jugadorImg.complete && jugadorImg.naturalWidth !== 0) {
+        ctx.drawImage(jugadorImg, p.x, p.y, p.w, p.h);
     } else {
-        // Cuadro de carga temporal por si la imagen demora
         ctx.fillStyle = "white";
         ctx.fillRect(p.x, p.y, p.w, p.h);
     }
     
-    obstaculos.forEach(o => {
+    // DIBUJAR RIVALES
+    obstáculos.forEach(o => {
         if(o.img.complete && o.img.naturalWidth !== 0) {
-            ctx.drawImage(o.img, o.x, groundY - o.h, o.w, o.h);
-        } else {
-            ctx.fillStyle = "red";
-            ctx.fillRect(o.x, groundY - o.h, o.w, o.h);
-        }
-    });
-
-    requestAnimationFrame(loop);
-}
-
-window.addEventListener("touchstart", (e) => { 
-    if(juegoActivo) { e.preventDefault(); saltar(); }
-}, {passive: false});
-
-window.addEventListener("mousedown", () => { if(juegoActivo) saltar(); });
-
-setInterval(spawn, 1700);
-</script>
-</body>
-</html>
+            ctx.drawImage(o
