@@ -3,145 +3,160 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Liga Chilena - Selección</title>
+    <title>Super Liga Chilena</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #2c3e50; font-family: 'Arial Black', sans-serif; touch-action: none; }
-        canvas { display: block; background: #87CEEB; }
-        #overlay {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            display: flex; flex-direction: column; justify-content: center;
-            align-items: center; background: rgba(0,0,0,0.85); color: white; text-align: center; z-index: 20;
+        body { margin: 0; overflow: hidden; background: #87CEEB; font-family: sans-serif; touch-action: none; }
+        #menu-inicio {
+            position: absolute; width: 100%; height: 100%; 
+            background: rgba(0,0,0,0.9); z-index: 100;
+            display: flex; flex-direction: column; align-items: center; justify-content: center; color: white;
         }
-        .selector { display: flex; gap: 20px; margin-top: 20px; flex-wrap: wrap; justify-content: center; }
-        .escudo-btn { 
-            width: 80px; height: 80px; cursor: pointer; border: 4px solid transparent; 
-            background: white; border-radius: 10px; padding: 5px; transition: 0.3s;
+        .equipos { display: flex; gap: 15px; margin-top: 20px; }
+        .equipo-btn { 
+            background: white; border: 3px solid #f1c40f; border-radius: 10px;
+            padding: 10px; width: 80px; height: 80px; cursor: pointer;
         }
-        .escudo-btn:active { transform: scale(0.9); border-color: #f1c40f; }
-        h1 { color: #f1c40f; margin-bottom: 10px; font-size: 1.5em; }
+        .equipo-btn img { width: 100%; height: 100%; object-fit: contain; }
+        canvas { display: block; }
         .hidden { display: none !important; }
     </style>
 </head>
 <body>
 
-<div id="overlay">
-    <h1 id="title">ELIGE TU EQUIPO</h1>
-    <div id="selectorContainer" class="selector">
-        <img src="https://upload.wikimedia.org/wikipedia/commons/f/fe/Logo_Colo-Colo_2023.png" class="escudo-btn" onclick="seleccionar(0)">
-        <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/e/e0/Logo_Universidad_de_Chile.svg/1200px-Logo_Universidad_de_Chile.svg.png" class="escudo-btn" onclick="seleccionar(1)">
-        <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/e/e9/Escudo_Club_Deportivo_Universidad_Catolica.svg/1200px-Escudo_Club_Deportivo_Universidad_Catolica.svg.png" class="escudo-btn" onclick="seleccionar(2)">
+<div id="menu-inicio">
+    <h1>ELIGE TU EQUIPO</h1>
+    <div class="equipos">
+        <div class="equipo-btn" onclick="iniciarJuego(0)">
+            <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/f/fe/Logo_Colo-Colo_2023.png/240px-Logo_Colo-Colo_2023.png" alt="CC">
+        </div>
+        <div class="equipo-btn" onclick="iniciarJuego(1)">
+            <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/e/e0/Logo_Universidad_de_Chile.svg/1200px-Logo_Universidad_de_Chile.svg.png" alt="U">
+        </div>
+        <div class="equipo-btn" onclick="iniciarJuego(2)">
+            <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/e/e9/Escudo_Club_Deportivo_Universidad_Catolica.svg/1200px-Escudo_Club_Deportivo_Universidad_Catolica.svg.png" alt="UC">
+        </div>
     </div>
-    <p id="msg" style="margin-top:20px"></p>
-    <button id="retryBtn" class="hidden" onclick="location.reload()" style="padding:10px 20px; background:#f1c40f; border:none; font-weight:bold; border-radius:5px;">CAMBIAR EQUIPO</button>
 </div>
 
-<canvas id="game"></canvas>
+<canvas id="gameCanvas"></canvas>
 
 <script>
-const canvas = document.getElementById("game");
+const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
-const overlay = document.getElementById("overlay");
-const selectorContainer = document.getElementById("selectorContainer");
+const menu = document.getElementById("menu-inicio");
 
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 
-const rutas = [
-    "https://upload.wikimedia.org/wikipedia/commons/f/fe/Logo_Colo-Colo_2023.png",
+const links = [
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/f/fe/Logo_Colo-Colo_2023.png/240px-Logo_Colo-Colo_2023.png",
     "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e0/Logo_Universidad_de_Chile.svg/1200px-Logo_Universidad_de_Chile.svg.png",
     "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e9/Escudo_Club_Deportivo_Universidad_Catolica.svg/1200px-Escudo_Club_Deportivo_Universidad_Catolica.svg.png"
 ];
 
-let imagenes = rutas.map(r => { const i = new Image(); i.src = r; return i; });
-
-let playing = false;
+let imgJugador = new Image();
+let imagenesRivales = [];
+let juegoActivo = false;
 let score = 0;
-let obstacles = [];
-let imgJugador, enemigosDisp = [];
+let obstaculos = [];
 
-const player = { x: 50, y: 0, w: 60, h: 60, dy: 0, jump: 16, grav: 0.8, grounded: false };
+const jugador = { x: 50, y: 0, w: 60, h: 60, dy: 0, salto: 15, gravedad: 0.8, enSuelo: false };
 
-function seleccionar(index) {
-    imgJugador = imagenes[index];
-    // Los enemigos son los equipos que NO elegiste
-    enemigosDisp = imagenes.filter((_, i) => i !== index);
+function iniciarJuego(index) {
+    imgJugador.src = links[index];
+    // Rivales son los que no elegiste
+    imagenesRivales = links.filter((_, i) => i !== index).map(link => {
+        let img = new Image();
+        img.src = link;
+        return img;
+    });
+
+    menu.classList.add("hidden");
+    juegoActivo = true;
+    score = 0;
+    obstaculos = [];
+    jugador.y = canvas.height - 150;
     
-    document.getElementById("title").innerText = "¡A JUGAR!";
-    selectorContainer.classList.add("hidden");
-    document.getElementById("msg").innerText = "TOCA PARA SALTAR";
-    
-    setTimeout(() => {
-        playing = true;
-        overlay.classList.add("hidden");
-        loop();
-    }, 500);
+    // Iniciar bucle
+    bucle();
 }
 
-function spawn() {
-    if (playing) {
-        const imgEne = enemigosDisp[Math.floor(Math.random() * enemigosDisp.length)];
-        obstacles.push({ x: canvas.width, w: 55, h: 55, img: imgEne });
+function saltar() {
+    if (jugador.enSuelo && juegoActivo) {
+        jugador.dy = -jugador.salto;
+        jugador.enSuelo = false;
     }
 }
 
-function update() {
-    if (!playing) return;
-    player.dy += player.grav;
-    player.y += player.dy;
-    const groundY = canvas.height - 50;
+function crearObstaculo() {
+    if (juegoActivo) {
+        const imgAleatoria = imagenesRivales[Math.floor(Math.random() * imagenesRivales.length)];
+        obstaculos.push({ x: canvas.width, w: 50, h: 50, img: imgAleatoria });
+    }
+}
 
-    if (player.y + player.h > groundY) {
-        player.y = groundY - player.h;
-        player.dy = 0;
-        player.grounded = true;
+function actualizar() {
+    if (!juegoActivo) return;
+
+    jugador.dy += jugador.gravedad;
+    jugador.y += jugador.dy;
+
+    const sueloY = canvas.height - 50;
+    if (jugador.y + jugador.h > sueloY) {
+        jugador.y = sueloY - jugador.h;
+        jugador.dy = 0;
+        jugador.enSuelo = true;
     }
 
-    obstacles.forEach((obs, i) => {
+    obstaculos.forEach((obs, i) => {
         obs.x -= 8;
-        if (player.x < obs.x + obs.w - 15 && player.x + player.w - 15 > obs.x &&
-            player.y + player.h > groundY - obs.h) {
-            morir();
+        // Colisión
+        if (jugador.x < obs.x + obs.w - 10 && jugador.x + jugador.w - 10 > obs.x &&
+            jugador.y + jugador.h > sueloY - obs.h) {
+            juegoActivo = false;
+            setTimeout(() => { location.reload(); }, 500); // Recarga para volver al menú
         }
-        if (obs.x + obs.w < 0) { obstacles.splice(i, 1); score++; }
+        if (obs.x + obs.w < 0) {
+            obstaculos.splice(i, 1);
+            score++;
+        }
     });
 }
 
-function morir() {
-    playing = false;
-    overlay.classList.remove("hidden");
-    document.getElementById("title").innerText = "¡TARJETA ROJA!";
-    document.getElementById("msg").innerText = "GOLES: " + score;
-    document.getElementById("retryBtn").classList.remove("hidden");
-}
-
-function draw() {
+function dibujar() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    // Césped
+
+    // Suelo (Césped)
     ctx.fillStyle = "#2ecc71";
     ctx.fillRect(0, canvas.height - 50, canvas.width, 50);
-    // Jugador elegido
-    ctx.drawImage(imgJugador, player.x, player.y, player.w, player.h);
-    // Obstáculos (rivales)
-    obstacles.forEach(obs => { ctx.drawImage(obs.img, obs.x, canvas.height - 50 - obs.h, obs.w, obs.h); });
+
+    // Jugador
+    ctx.drawImage(imgJugador, jugador.x, jugador.y, jugador.w, jugador.h);
+
+    // Obstáculos
+    obstaculos.forEach(obs => {
+        ctx.drawImage(obs.img, obs.x, canvas.height - 50 - obs.h, obs.w, obs.h);
+    });
+
     // Score
     ctx.fillStyle = "white";
     ctx.font = "bold 24px Arial";
-    ctx.fillText("GOLES: " + score, 20, 50);
+    ctx.fillText("GOLES: " + score, 20, 40);
 }
 
-function loop() {
-    if(!playing) return;
-    update();
-    draw();
-    requestAnimationFrame(loop);
+function bucle() {
+    if (juegoActivo) {
+        actualizar();
+        dibujar();
+        requestAnimationFrame(bucle);
+    }
 }
 
-window.addEventListener("touchstart", (e) => { 
-    if(playing) { player.dy = player.grounded ? -player.jump : player.dy; player.grounded = false; }
-});
-window.addEventListener("mousedown", () => { if(playing && player.grounded) { player.dy = -player.jump; player.grounded = false; } });
+// Eventos
+window.addEventListener("touchstart", (e) => { e.preventDefault(); saltar(); }, {passive: false});
+window.addEventListener("mousedown", saltar);
 
-setInterval(spawn, 1300);
+setInterval(crearObstaculo, 1500);
 </script>
 </body>
 </html>
