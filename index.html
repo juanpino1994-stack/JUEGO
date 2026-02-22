@@ -9,10 +9,23 @@
         #ui-layer { position: absolute; width: 100%; top: 0; left: 0; text-align: center; z-index: 10; pointer-events: none; }
         .header-title { background: #fff; padding: 10px 0; color: #008ecc; font-size: 20px; font-weight: bold; }
         .sub-title { color: white; background: #005a82; padding: 5px 0; font-size: 16px; }
-        #selector { position: absolute; inset: 0; background: #004766; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 1000; }
-        .equipos { display: flex; gap: 10px; margin-top: 20px; }
-        .btn-escudo { background: white; border: 5px solid #f1c40f; border-radius: 10px; width: 85px; height: 85px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
-        .btn-escudo img { width: 80%; pointer-events: none; }
+        
+        #selector { 
+            position: absolute; inset: 0; background: #004766; 
+            display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 1000; 
+        }
+        .equipos { display: flex; gap: 10px; margin-top: 20px; align-items: center; }
+        
+        /* Ajuste para que los logos no se salgan, especialmente la UC */
+        .btn-escudo { 
+            background: white; border: 4px solid #f1c40f; border-radius: 12px; 
+            width: 80px; height: 80px; display: flex; align-items: center; 
+            justify-content: center; overflow: hidden; cursor: pointer;
+        }
+        .btn-escudo img { 
+            max-width: 90%; max-height: 90%; object-fit: contain; pointer-events: none; 
+        }
+        
         canvas { display: block; }
     </style>
 </head>
@@ -25,11 +38,11 @@
 
 <div id="selector">
     <div class="equipos">
-        <div class="btn-escudo" onclick="prepararJuego(0)"><img src="https://images.cults3d.com/BEZH-sNJ_jgLnvjPRCVd9mlt7yM=/516x516/filters:no_upscale():format(webp)/https://fbi.cults3d.com/uploaders/29012604/illustration-file/951c0e28-495a-4d1c-836f-8d6cd82dc01c/descarga.png"></div>
-        <div class="btn-escudo" onclick="prepararJuego(1)"><img src="https://p7.hiclipart.com/preview/967/1019/627/colo-colo-chilean-primera-division-club-universidad-de-chile-c-d-antofagasta-club-deportivo-palestino-football.jpg"></div>
-        <div class="btn-escudo" onclick="prepararJuego(2)"><img src="https://fbi.cults3d.com/uploaders/14728184/illustration-file/918b423e-856e-4e3a-8f11-4d7e2b0cf7d3/U-CATOLICA.png"></div>
+        <div class="btn-escudo" onclick="forzarInicio(0)"><img src="https://images.cults3d.com/BEZH-sNJ_jgLnvjPRCVd9mlt7yM=/516x516/filters:no_upscale():format(webp)/https://fbi.cults3d.com/uploaders/29012604/illustration-file/951c0e28-495a-4d1c-836f-8d6cd82dc01c/descarga.png"></div>
+        <div class="btn-escudo" onclick="forzarInicio(1)"><img src="https://p7.hiclipart.com/preview/967/1019/627/colo-colo-chilean-primera-division-club-universidad-de-chile-c-d-antofagasta-club-deportivo-palestino-football.jpg"></div>
+        <div class="btn-escudo" onclick="forzarInicio(2)"><img src="https://fbi.cults3d.com/uploaders/14728184/illustration-file/918b423e-856e-4e3a-8f11-4d7e2b0cf7d3/U-CATOLICA.png"></div>
     </div>
-    <h3 id="txtCarga" style="color:white; margin-top:20px;">ELIGE TU EQUIPO</h3>
+    <h3 id="txtCarga" style="color:white; margin-top:30px;">TOCA TU EQUIPO</h3>
 </div>
 
 <canvas id="game"></canvas>
@@ -39,7 +52,6 @@ const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 const selector = document.getElementById("selector");
 const subStatus = document.getElementById("subStatus");
-const txtCarga = document.getElementById("txtCarga");
 
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
@@ -58,13 +70,12 @@ let goles = 0;
 let obstaculos = [];
 const p = { x: 50, y: 0, w: 60, h: 60, dy: 0, salto: 15, grav: 0.7, suelo: false };
 
-function prepararJuego(idx) {
-    txtCarga.innerText = "CARGANDO CANCHA...";
+function forzarInicio(idx) {
+    document.getElementById("txtCarga").innerText = "INICIANDO...";
     
-    // 1. Cargar imagen del jugador
     imgJugador.src = links[idx];
     
-    // 2. Cargar rivales
+    // Cargar rivales
     imagenesRivales = [];
     links.forEach((l, i) => {
         if(i !== idx) {
@@ -75,14 +86,14 @@ function prepararJuego(idx) {
         }
     });
 
-    // 3. ESPERA DE SEGURIDAD: Solo inicia cuando la imagen principal cargue
-    imgJugador.onload = function() {
-        selector.style.display = "none";
-        juegoActivo = true;
-        p.y = canvas.height - 150;
-        subStatus.innerText = "GOLES: 0";
-        loop();
-    };
+    // SISTEMA ANTIBLOQUEO: Quitamos el menú inmediatamente
+    selector.style.display = "none";
+    juegoActivo = true;
+    p.y = canvas.height - 150;
+    subStatus.innerText = "GOLES: 0";
+    
+    // Iniciamos el bucle sin esperar a que carguen (se dibujarán apenas bajen)
+    requestAnimationFrame(loop);
 }
 
 function saltar() {
@@ -114,7 +125,7 @@ function loop() {
 
     obstaculos.forEach((o, i) => {
         o.x -= 6;
-        if (p.x < o.x + o.w - 10 && p.x + p.w - 10 > o.x && p.y + p.h > groundY - o.h) {
+        if (p.x < o.x + o.w - 15 && p.x + p.w - 15 > o.x && p.y + p.h > groundY - o.h) {
             juegoActivo = false;
             alert("¡TARJETA ROJA! GOLES: " + goles);
             location.reload();
@@ -126,21 +137,27 @@ function loop() {
         }
     });
 
-    // DIBUJO
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
-    // Suelo
+    // Pasto
     ctx.fillStyle = "#2ecc71";
     ctx.fillRect(0, canvas.height - 50, canvas.width, 50);
 
-    // Solo dibujamos si las imágenes están listas
-    if(imgJugador.complete) {
+    // Dibujamos con validación de carga
+    if(imgJugador.complete && imgJugador.naturalWidth !== 0) {
         ctx.drawImage(imgJugador, p.x, p.y, p.w, p.h);
+    } else {
+        // Cuadro de carga temporal por si la imagen demora
+        ctx.fillStyle = "white";
+        ctx.fillRect(p.x, p.y, p.w, p.h);
     }
     
     obstaculos.forEach(o => {
-        if(o.img.complete) {
+        if(o.img.complete && o.img.naturalWidth !== 0) {
             ctx.drawImage(o.img, o.x, groundY - o.h, o.w, o.h);
+        } else {
+            ctx.fillStyle = "red";
+            ctx.fillRect(o.x, groundY - o.h, o.w, o.h);
         }
     });
 
