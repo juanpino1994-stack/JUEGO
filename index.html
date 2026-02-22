@@ -2,26 +2,27 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Mini Salto Estilo Mario</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Mario Mobile Edition</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #5c94fc; font-family: sans-serif; }
-        canvas { display: block; background: #5c94fc; border-bottom: 20px solid #74bf2e; }
-        #info { position: absolute; top: 10px; left: 10px; color: white; }
+        body { margin: 0; overflow: hidden; background: #5c94fc; font-family: sans-serif; touch-action: manipulation; }
+        canvas { display: block; background: #5c94fc; border-bottom: 20px solid #74bf2e; width: 100vw; height: 300px; }
+        #info { position: absolute; top: 10px; left: 10px; color: white; font-weight: bold; text-shadow: 1px 1px 2px black; }
     </style>
 </head>
 <body>
 
-<div id="info">Usa **ESPACIO** para saltar.</div>
+<div id="info">TOCA LA PANTALLA O ESPACIO PARA SALTAR</div>
 <canvas id="gameCanvas"></canvas>
 
 <script>
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
+// Ajuste de pantalla para móvil
 canvas.width = window.innerWidth;
-canvas.height = 400;
+canvas.height = 300;
 
-// Configuración del personaje (estilo Mario)
 const player = {
     x: 50,
     y: canvas.height - 50,
@@ -29,12 +30,11 @@ const player = {
     height: 50,
     color: "#ff0000",
     dy: 0,
-    jumpForce: 15,
-    gravity: 0.8,
+    jumpForce: 12,
+    gravity: 0.6,
     grounded: false
 };
 
-// Obstáculos
 const obstacles = [];
 let score = 0;
 
@@ -48,8 +48,14 @@ function spawnObstacle() {
     });
 }
 
+function saltar() {
+    if (player.grounded) {
+        player.dy = -player.jumpForce;
+        player.grounded = false;
+    }
+}
+
 function update() {
-    // Gravedad y Salto
     if (!player.grounded) {
         player.dy += player.gravity;
         player.y += player.dy;
@@ -61,22 +67,13 @@ function update() {
         player.grounded = true;
     }
 
-    // Mover obstáculos
     obstacles.forEach((obs, index) => {
-        obs.x -= 6; // Velocidad del suelo
-
-        // Colisión simple
-        if (
-            player.x < obs.x + obs.width &&
-            player.x + player.width > obs.x &&
-            player.y < obs.y + obs.height &&
-            player.y + player.height > obs.y
-        ) {
-            alert("¡Game Over! Puntuación: " + score);
+        obs.x -= 5;
+        if (player.x < obs.x + obs.width && player.x + player.width > obs.x &&
+            player.y < obs.y + obs.height && player.y + player.height > obs.y) {
+            alert("¡Game Over! Puntos: " + score);
             document.location.reload();
         }
-
-        // Eliminar obstáculos fuera de pantalla
         if (obs.x + obs.width < 0) {
             obstacles.splice(index, 1);
             score++;
@@ -86,22 +83,13 @@ function update() {
 
 function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    // Dibujar Jugador
     ctx.fillStyle = player.color;
     ctx.fillRect(player.x, player.y, player.width, player.height);
-
-    // Dibujar Obstáculos (tuberías/bloques)
     ctx.fillStyle = "#74bf2e";
-    obstacles.forEach(obs => {
-        ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
-        ctx.strokeRect(obs.x, obs.y, obs.width, obs.height);
-    });
-
-    // Puntuación
+    obstacles.forEach(obs => { ctx.fillRect(obs.x, obs.y, obs.width, obs.height); });
     ctx.fillStyle = "white";
     ctx.font = "20px Arial";
-    ctx.fillText("Puntos: " + score, canvas.width - 120, 30);
+    ctx.fillText("Score: " + score, canvas.width - 100, 30);
 }
 
 function loop() {
@@ -110,17 +98,17 @@ function loop() {
     requestAnimationFrame(loop);
 }
 
-// Control de salto
-window.addEventListener("keydown", (e) => {
-    if (e.code === "Space" && player.grounded) {
-        player.dy = -player.jumpForce;
-        player.grounded = false;
-    }
-});
+// --- CONTROLES PARA AMBOS ---
+// 1. Para PC (Teclado)
+window.addEventListener("keydown", (e) => { if (e.code === "Space") saltar(); });
 
-// Generar obstáculos cada cierto tiempo
-setInterval(spawnObstacle, 1500);
+// 2. Para CELULAR (Toque de pantalla)
+window.addEventListener("touchstart", (e) => {
+    e.preventDefault(); // Evita que la pantalla se mueva al tocar
+    saltar();
+}, { passive: false });
 
+setInterval(spawnObstacle, 1800);
 loop();
 </script>
 </body>
