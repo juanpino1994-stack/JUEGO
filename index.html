@@ -5,42 +5,36 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Super Liga Chilena Pro</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #008ecc; font-family: sans-serif; touch-action: none; -webkit-user-select: none; }
-        #ui-layer { position: absolute; width: 100%; top: 0; left: 0; text-align: center; z-index: 10; pointer-events: none; }
-        .header-title { background: #fff; padding: 10px 0; color: #008ecc; font-size: 20px; font-weight: bold; }
-        .sub-title { color: white; background: #005a82; padding: 5px 0; font-size: 16px; }
-        
+        body { margin: 0; overflow: hidden; background: #008ecc; font-family: sans-serif; touch-action: none; }
+        #ui { position: absolute; width: 100%; top: 0; text-align: center; z-index: 10; color: white; pointer-events: none; }
         #selector { 
             position: absolute; inset: 0; background: #004766; 
-            display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 1000; 
+            display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 100; 
         }
-        .equipos { display: flex; gap: 10px; margin-top: 20px; }
-        
-        .btn-escudo { 
-            background: white; border: 4px solid #f1c40f; border-radius: 12px; 
-            width: 85px; height: 85px; display: flex; align-items: center; 
-            justify-content: center; overflow: hidden; cursor: pointer;
+        .equipos { display: flex; gap: 10px; margin-bottom: 20px; }
+        .btn { 
+            background: white; border: 4px solid #f1c40f; border-radius: 10px; 
+            width: 80px; height: 80px; display: flex; align-items: center; 
+            justify-content: center; cursor: pointer;
         }
-        /* Ajuste para que la UC no se deforme */
-        .btn-escudo img { max-width: 85%; max-height: 85%; object-fit: contain; pointer-events: none; }
-        
+        .btn img { max-width: 80%; max-height: 80%; pointer-events: none; }
         canvas { display: block; }
     </style>
 </head>
 <body>
 
-<div id="ui-layer">
-    <div class="header-title">Super Liga Chilena Pro</div>
-    <div id="subStatus" class="sub-title">ELIGE TU EQUIPO</div>
+<div id="ui">
+    <h2 style="background:white; color:#008ecc; margin:0; padding:10px;">Super Liga Chilena</h2>
+    <div id="score" style="background:#005a82; padding:5px;">ELIGE TU EQUIPO</div>
 </div>
 
 <div id="selector">
     <div class="equipos">
-        <div class="btn-escudo" onclick="iniciarJuego(0)"><img src="uchile.png"></div>
-        <div class="btn-escudo" onclick="iniciarJuego(1)"><img src="colo.png"></div>
-        <div class="btn-escudo" onclick="iniciarJuego(2)"><img src="uc.png"></div>
+        <div class="btn" onclick="play(0)"><img src="uno.png"></div>
+        <div class="btn" onclick="play(1)"><img src="colo.png"></div>
+        <div class="btn" onclick="play(2)"><img src="uc.png"></div>
     </div>
-    <h3 style="color:white; margin-top:25px;">TOCA PARA EMPEZAR</h3>
+    <b style="color:white;">TOCA UN ESCUDO</b>
 </div>
 
 <canvas id="game"></canvas>
@@ -49,94 +43,86 @@
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 const selector = document.getElementById("selector");
-const subStatus = document.getElementById("subStatus");
+const scoreDisp = document.getElementById("score");
 
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 
-// Nombres exactos de tus archivos en GitHub
-const archivos = ["uchile.png", "colo.png", "uc.png"];
+const files = ["uno.png", "colo.png", "uc.png"];
+let playerImg = new Image();
+let enemyImgs = [];
+let active = false;
+let score = 0;
+let obs = [];
 
-let imgJugador = new Image();
-let imgsRivales = [];
-let activo = false;
-let goles = 0;
-let obstaculos = [];
+const p = { x: 50, y: 0, w: 60, h: 60, dy: 0, jump: 15, grav: 0.7, onG: false };
 
-const p = { x: 50, y: 0, w: 65, h: 65, dy: 0, salto: 15, grav: 0.7, suelo: false };
-
-function iniciarJuego(idx) {
-    // Cargar el elegido
-    imgJugador.src = archivos[idx];
-    
-    // Cargar rivales
-    imgsRivales = [];
-    archivos.forEach((nombre, i) => {
-        if(i !== idx) {
-            let img = new Image();
-            img.src = nombre;
-            imgsRivales.push(img);
-        }
+function play(idx) {
+    // 1. Asignar imágenes
+    playerImg.src = files[idx];
+    enemyImgs = files.filter((_, i) => i !== idx).map(f => {
+        let img = new Image();
+        img.src = f;
+        return img;
     });
 
+    // 2. Limpiar y arrancar (Igual que el Máster)
     selector.style.display = "none";
-    activo = true;
+    active = true;
+    score = 0;
+    obs = [];
     p.y = canvas.height - 150;
-    subStatus.innerText = "GOLES: 0";
-    loop();
+    scoreDisp.innerText = "GOLES: 0";
+    
+    requestAnimationFrame(update);
 }
 
-function saltar() {
-    if (p.suelo && activo) {
-        p.dy = -p.salto;
-        p.suelo = false;
-    }
-}
-
-function spawn() {
-    if (activo && imgsRivales.length > 0) {
-        let imgR = imgsRivales[Math.floor(Math.random() * imgsRivales.length)];
-        obstaculos.push({ x: canvas.width, w: 60, h: 60, img: imgR });
-    }
-}
-
-function loop() {
-    if (!activo) return;
+function update() {
+    if (!active) return;
 
     p.dy += p.grav;
     p.y += p.dy;
-    const sueloY = canvas.height - 50;
+    const floor = canvas.height - 50;
 
-    if (p.y + p.h > sueloY) {
-        p.y = sueloY - p.h;
+    if (p.y + p.h > floor) {
+        p.y = floor - p.h;
         p.dy = 0;
-        p.suelo = true;
+        p.onG = true;
     }
 
-    obstaculos.forEach((o, i) => {
-        o.x -= 7;
-        if (p.x < o.x + o.w - 15 && p.x + p.w - 15 > o.x && p.y + p.h > sueloY - o.h) {
-            activo = false;
-            alert("¡TARJETA ROJA! Goles: " + goles);
+    obs.forEach((o, i) => {
+        o.x -= 6;
+        // Colisión
+        if (p.x < o.x + 40 && p.x + 40 > o.x && p.y + p.h > floor - 40) {
+            active = false;
+            alert("FIN DEL PARTIDO. GOLES: " + score);
             location.reload();
         }
-        if (o.x + o.w < 0) { 
-            obstaculos.splice(i, 1); 
-            goles++; 
-            subStatus.innerText = "GOLES: " + goles; 
-        }
+        if (o.x + 50 < 0) { obs.splice(i, 1); score++; scoreDisp.innerText = "GOLES: " + score; }
     });
 
+    // Dibujo
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
-    // Suelo verde
     ctx.fillStyle = "#2ecc71";
-    ctx.fillRect(0, canvas.height - 50, canvas.width, 50);
+    ctx.fillRect(0, floor, canvas.width, 50);
 
-    // Dibujar Jugador
-    if(imgJugador.complete) {
-        ctx.drawImage(imgJugador, p.x, p.y, p.w, p.h);
-    } else {
-        ctx.fillStyle = "white"; // Cuadro blanco si la imagen falla
-        ctx.fillRect(p.x, p.y, p.w, p.h);
+    ctx.drawImage(playerImg, p.x, p.y, p.w, p.h);
+    obs.forEach(o => ctx.drawImage(o.img, o.x, floor - 50, 50, 50));
+
+    requestAnimationFrame(update);
+}
+
+function jump() { if(p.onG && active) { p.dy = -p.jump; p.onG = false; } }
+
+window.addEventListener("touchstart", (e) => { if(active) { e.preventDefault(); jump(); } }, {passive: false});
+window.addEventListener("mousedown", jump);
+
+setInterval(() => {
+    if(active) {
+        let rnd = enemyImgs[Math.floor(Math.random() * enemyImgs.length)];
+        obs.push({ x: canvas.width, img: rnd });
     }
+}, 1800);
+</script>
+</body>
+</html>
