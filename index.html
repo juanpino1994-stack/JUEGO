@@ -5,15 +5,25 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Super Liga Chilena Pro</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #008ecc; font-family: sans-serif; touch-action: none; }
+        body { margin: 0; overflow: hidden; background: #008ecc; font-family: sans-serif; touch-action: none; -webkit-user-select: none; }
         #ui-layer { position: absolute; width: 100%; top: 0; left: 0; text-align: center; z-index: 10; pointer-events: none; }
         .header-title { background: #fff; padding: 10px 0; color: #008ecc; font-size: 20px; font-weight: bold; }
         .sub-title { color: white; background: #005a82; padding: 5px 0; font-size: 16px; }
-        #selector { position: absolute; inset: 0; background: #004766; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 1000; }
+        
+        #selector { 
+            position: absolute; inset: 0; background: #004766; 
+            display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 1000; 
+        }
         .equipos { display: flex; gap: 10px; margin-top: 20px; }
-        .btn-escudo { background: white; border: 4px solid #f1c40f; border-radius: 12px; width: 85px; height: 85px; display: flex; align-items: center; justify-content: center; overflow: hidden; cursor: pointer; }
-        /* Ajuste clave para que la UC no se estire ni se salga */
+        
+        .btn-escudo { 
+            background: white; border: 4px solid #f1c40f; border-radius: 12px; 
+            width: 85px; height: 85px; display: flex; align-items: center; 
+            justify-content: center; overflow: hidden; cursor: pointer;
+        }
+        /* Ajuste para que la UC no se deforme */
         .btn-escudo img { max-width: 85%; max-height: 85%; object-fit: contain; pointer-events: none; }
+        
         canvas { display: block; }
     </style>
 </head>
@@ -21,16 +31,16 @@
 
 <div id="ui-layer">
     <div class="header-title">Super Liga Chilena Pro</div>
-    <div id="subStatus" class="sub-title">¡ELIGE TU EQUIPO!</div>
+    <div id="subStatus" class="sub-title">ELIGE TU EQUIPO</div>
 </div>
 
 <div id="selector">
     <div class="equipos">
-        <div class="btn-escudo" onclick="empezar(0)"><img src="https://images.cults3d.com/BEZH-sNJ_jgLnvjPRCVd9mlt7yM=/516x516/filters:no_upscale():format(webp)/https://fbi.cults3d.com/uploaders/29012604/illustration-file/951c0e28-495a-4d1c-836f-8d6cd82dc01c/descarga.png"></div>
-        <div class="btn-escudo" onclick="empezar(1)"><img src="https://p7.hiclipart.com/preview/967/1019/627/colo-colo-chilean-primera-division-club-universidad-de-chile-c-d-antofagasta-club-deportivo-palestino-football.jpg"></div>
-        <div class="btn-escudo" onclick="empezar(2)"><img src="https://fbi.cults3d.com/uploaders/14728184/illustration-file/918b423e-856e-4e3a-8f11-4d7e2b0cf7d3/U-CATOLICA.png"></div>
+        <div class="btn-escudo" onclick="iniciarJuego(0)"><img src="uchile.png"></div>
+        <div class="btn-escudo" onclick="iniciarJuego(1)"><img src="colo.png"></div>
+        <div class="btn-escudo" onclick="iniciarJuego(2)"><img src="uc.png"></div>
     </div>
-    <h3 style="color:white; margin-top:25px;">TOCA UN ESCUDO PARA JUGAR</h3>
+    <h3 style="color:white; margin-top:25px;">TOCA PARA EMPEZAR</h3>
 </div>
 
 <canvas id="game"></canvas>
@@ -44,32 +54,28 @@ const subStatus = document.getElementById("subStatus");
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 
-const links = [
-    "https://images.cults3d.com/BEZH-sNJ_jgLnvjPRCVd9mlt7yM=/516x516/filters:no_upscale():format(webp)/https://fbi.cults3d.com/uploaders/29012604/illustration-file/951c0e28-495a-4d1c-836f-8d6cd82dc01c/descarga.png",
-    "https://p7.hiclipart.com/preview/967/1019/627/colo-colo-chilean-primera-division-club-universidad-de-chile-c-d-antofagasta-club-deportivo-palestino-football.jpg",
-    "https://fbi.cults3d.com/uploaders/14728184/illustration-file/918b423e-856e-4e3a-8f11-4d7e2b0cf7d3/U-CATOLICA.png"
-];
+// Nombres exactos de tus archivos en GitHub
+const archivos = ["uchile.png", "colo.png", "uc.png"];
 
-let jugadorImg = new Image();
-let rivalesImgs = [];
+let imgJugador = new Image();
+let imgsRivales = [];
 let activo = false;
-let puntos = 0;
-let obstáculos = [];
+let goles = 0;
+let obstaculos = [];
 
 const p = { x: 50, y: 0, w: 65, h: 65, dy: 0, salto: 15, grav: 0.7, suelo: false };
 
-function empezar(idx) {
-    // IMPORTANTE: Quitamos el filtro de seguridad para que el canvas pueda dibujar la imagen
-    jugadorImg.crossOrigin = "anonymous";
-    jugadorImg.src = links[idx];
+function iniciarJuego(idx) {
+    // Cargar el elegido
+    imgJugador.src = archivos[idx];
     
-    rivalesImgs = [];
-    links.forEach((l, i) => {
+    // Cargar rivales
+    imgsRivales = [];
+    archivos.forEach((nombre, i) => {
         if(i !== idx) {
             let img = new Image();
-            img.crossOrigin = "anonymous";
-            img.src = l;
-            rivalesImgs.push(img);
+            img.src = nombre;
+            imgsRivales.push(img);
         }
     });
 
@@ -87,10 +93,10 @@ function saltar() {
     }
 }
 
-function crearObstaculo() {
-    if (activo && rivalesImgs.length > 0) {
-        let imgR = rivalesImgs[Math.floor(Math.random() * rivalesImgs.length)];
-        obstáculos.push({ x: canvas.width, w: 60, h: 60, img: imgR });
+function spawn() {
+    if (activo && imgsRivales.length > 0) {
+        let imgR = imgsRivales[Math.floor(Math.random() * imgsRivales.length)];
+        obstaculos.push({ x: canvas.width, w: 60, h: 60, img: imgR });
     }
 }
 
@@ -107,36 +113,30 @@ function loop() {
         p.suelo = true;
     }
 
-    obstáculos.forEach((o, i) => {
+    obstaculos.forEach((o, i) => {
         o.x -= 7;
-        // Colisión
         if (p.x < o.x + o.w - 15 && p.x + p.w - 15 > o.x && p.y + p.h > sueloY - o.h) {
             activo = false;
-            alert("¡TARJETA ROJA! Goles: " + puntos);
+            alert("¡TARJETA ROJA! Goles: " + goles);
             location.reload();
         }
         if (o.x + o.w < 0) { 
-            obstáculos.splice(i, 1); 
-            puntos++; 
-            subStatus.innerText = "GOLES: " + puntos; 
+            obstaculos.splice(i, 1); 
+            goles++; 
+            subStatus.innerText = "GOLES: " + goles; 
         }
     });
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
-    // Dibujar Suelo
+    // Suelo verde
     ctx.fillStyle = "#2ecc71";
     ctx.fillRect(0, canvas.height - 50, canvas.width, 50);
 
-    // DIBUJAR JUGADOR (Si no carga la imagen, dibuja un cuadro blanco para que al menos sepas dónde estás)
-    if(jugadorImg.complete && jugadorImg.naturalWidth !== 0) {
-        ctx.drawImage(jugadorImg, p.x, p.y, p.w, p.h);
+    // Dibujar Jugador
+    if(imgJugador.complete) {
+        ctx.drawImage(imgJugador, p.x, p.y, p.w, p.h);
     } else {
-        ctx.fillStyle = "white";
+        ctx.fillStyle = "white"; // Cuadro blanco si la imagen falla
         ctx.fillRect(p.x, p.y, p.w, p.h);
     }
-    
-    // DIBUJAR RIVALES
-    obstáculos.forEach(o => {
-        if(o.img.complete && o.img.naturalWidth !== 0) {
-            ctx.drawImage(o
